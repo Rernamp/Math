@@ -36,14 +36,18 @@ namespace UDA {
             }
         }
         void process(ITransmitter* transmiter, StaticVector<MapDataContainerToFilter, maxNumberElements>& dataContainers, const std::size_t& processSize) override {
-            for (std::size_t i = 0; i < dataContainers.size(); i++) {
-                _filtersInputBufferPointer[i].data = dataContainers[i].container.data;
-                _filtersInputBufferPointer[i].size = dataContainers[i].container.size;
-            }
-            multichannel_lms_norm_FROST_f32(&_filtersInstance[0], &_filtersInputBufferPointer[0],
-            &_linearConstr[0], &_outputBuffer[0], _filtersInputBufferPointer[0].size);
+            for (std::size_t j = 0; j < processSize; j++) {
+                for (std::size_t i = 0; i < dataContainers.size(); i++) {
+                    _filtersInputBufferPointer[i].data = dataContainers[i].container.data;
+                    _filtersInputBufferPointer[i].size = 1;
+                    ++dataContainers[i].container.data;
+                }
+                multichannel_lms_norm_FROST_f32(&_filtersInstance[0], &_filtersInputBufferPointer[0],
+                &_linearConstr[0], &_outputBuffer[0], _filtersInputBufferPointer[0].size);
 
-            transmiter->append(reinterpret_cast<uint8_t*>(&_outputBuffer[0]), processSize * sizeof(float32_t));
+                transmiter->append(reinterpret_cast<uint8_t*>(&_outputBuffer[0]), 1 * sizeof(float32_t));
+            }
+            
         }
         void start() override {
         }
@@ -139,12 +143,14 @@ namespace UDA {
 
                 while(filterDetailt <= stopFilterDetailt) {
                     
-                    *filterDetailt->pStateCurnt = static_cast<float32_t>(*_tempInputPointers->data) / static_cast<float32_t>(std::numeric_limits<int16_t>::max());
-                    // *filterDetailt->pStateCurnt = *_tempInputPointers->data;
+                    static constexpr float32_t scaleValue = 1.0f;
+                    // // *filterDetailt->pStateCurnt = static_cast<float32_t>(*_tempInputPointers->data) / static_cast<float32_t>(std::numeric_limits<int16_t>::max()) * scaleValue;
+                    *filterDetailt->pStateCurnt = static_cast<float32_t>(*_tempInputPointers->data);
                     filterDetailt->px = filterDetailt->pState;
                     filterDetailt->pb = filterDetailt->pCoeffs;
                     
-                    filterDetailt->in = static_cast<float32_t>(*_tempInputPointers->data) / static_cast<float32_t>(std::numeric_limits<int16_t>::max());
+                    // filterDetailt->in = static_cast<float32_t>(*_tempInputPointers->data) / static_cast<float32_t>(std::numeric_limits<int16_t>::max()) * scaleValue;
+                    filterDetailt->in = static_cast<float32_t>(*_tempInputPointers->data);
                     ++_tempInputPointers->data;
                     // filterDetailt->in = *_tempInputPointers->data++;
                     filterDetailt->energy -= filterDetailt->x0 * filterDetailt->x0;
