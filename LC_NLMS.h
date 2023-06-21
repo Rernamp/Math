@@ -4,6 +4,7 @@
 #include <W5500Connection.h>
 #include <DataContainer.h>
 #include <Math/IProcessing.h>
+#include <Math/IProcessing.h>
 #include <StaticVector.h>
 
 #include <array>
@@ -19,7 +20,7 @@ namespace UDA {
         	ValueType * data;
             std::size_t size;
         };
-        void initFilter(std::size_t numberElements, std::size_t filterOrders) {
+        void initFilter(std::size_t numberElements, std::size_t filterOrders, std::size_t sizeProcessing = numberSizeProcessing) {
             _numberElements = numberElements;
             _filterOrders = filterOrders;
             _weightingCoefficient.fill(0.0f);
@@ -30,8 +31,8 @@ namespace UDA {
                 _weightingCoefficientPountes[i].data = &_weightingCoefficient[i * _filterOrders];
                 _weightingCoefficientPountes[i].size = _filterOrders;
                 _weightingCoefficientPountes[i].data[_filterOrders - 1] = 0.5f;
-                _filterStateBufferPointer[i].data = &_filterStateBuffer[i * (numberSizeProcessing + _filterOrders - 1)];
-                arm_lms_norm_init_f32(&_filtersInstance[i], _filterOrders, _weightingCoefficientPountes[i].data, _filterStateBufferPointer[i].data, mu, numberSizeProcessing);
+                _filterStateBufferPointer[i].data = &_filterStateBuffer[i * (sizeProcessing + _filterOrders - 1)];
+                arm_lms_norm_init_f32(&_filtersInstance[i], static_cast<uint16_t>(_filterOrders), _weightingCoefficientPountes[i].data, _filterStateBufferPointer[i].data, mu, sizeProcessing);
             }
         }
         void process(ITransmitter* transmiter, StaticVector<MapDataContainerToFilter, maxNumberElements>& dataContainers, const std::size_t& processSize) override {
@@ -42,7 +43,7 @@ namespace UDA {
             multichannel_lms_norm_FROST_f32(&_filtersInstance[0], &_filtersInputBufferPointer[0],
             &_linearConstr[0], &_outputBuffer[0], _filtersInputBufferPointer[0].size);
 
-            transmiter->append(reinterpret_cast<uint8_t*>(&_outputBuffer[0]), _outputBuffer.size() * sizeof(float32_t));
+            transmiter->append(reinterpret_cast<uint8_t*>(&_outputBuffer[0]), processSize * sizeof(float32_t));
         }
         void start() override {
         }
@@ -136,7 +137,7 @@ namespace UDA {
 
                 totalEnergy = 0.0f;
 
-                while(filterDetailt >= stopFilterDetailt) {
+                while(filterDetailt <= stopFilterDetailt) {
                     
                     *filterDetailt->pStateCurnt = static_cast<float32_t>(*_tempInputPointers->data) / static_cast<float32_t>(std::numeric_limits<int16_t>::max());
                     // *filterDetailt->pStateCurnt = *_tempInputPointers->data;
@@ -192,7 +193,7 @@ namespace UDA {
                 /* Initialize pState pointer */                
                 filterDetailt = &_filtersDetailt[0];
 
-                while(filterDetailt >= stopFilterDetailt) {
+                while(filterDetailt <= stopFilterDetailt) {
                     filterDetailt->px = filterDetailt->pState;
                     filterDetailt->pb = filterDetailt->pCoeffs;
 
@@ -234,7 +235,7 @@ namespace UDA {
                 pc = (pCvec);
                 /* Initialize coeff pointer */
 
-                while(filterDetailt >= stopFilterDetailt) {
+                while(filterDetailt <= stopFilterDetailt) {
                     filterDetailt->pb_s2 = filterDetailt->pCoeffs;
                     ++filterDetailt;
                 }
@@ -245,14 +246,14 @@ namespace UDA {
                 while(tapCnt > 0) {
                     //I
                     v = *pc;
-                    while(filterDetailt >= stopFilterDetailt) {
+                    while(filterDetailt <= stopFilterDetailt) {
                         v -= *filterDetailt->pb_s2;
                         ++filterDetailt;
                     }
                     filterDetailt = &_filtersDetailt[0];
                     v /= 2.0f;
 
-                    while(filterDetailt >= stopFilterDetailt) {
+                    while(filterDetailt <= stopFilterDetailt) {
                         *filterDetailt->pb_s2 += v;
                         ++filterDetailt->pb_s2;                        
                         ++filterDetailt;
@@ -262,14 +263,14 @@ namespace UDA {
 
                     //II
                     v = *pc;
-                    while(filterDetailt >= stopFilterDetailt) {
+                    while(filterDetailt <= stopFilterDetailt) {
                         v -= *filterDetailt->pb_s2;
                         ++filterDetailt;
                     }
                     filterDetailt = &_filtersDetailt[0];
                     v /= 2.0f;
 
-                    while(filterDetailt >= stopFilterDetailt) {
+                    while(filterDetailt <= stopFilterDetailt) {
                         *filterDetailt->pb_s2 += v;
                         ++filterDetailt->pb_s2;                        
                         ++filterDetailt;
@@ -279,14 +280,14 @@ namespace UDA {
 
                     //III
                     v = *pc;
-                    while(filterDetailt >= stopFilterDetailt) {
+                    while(filterDetailt <= stopFilterDetailt) {
                         v -= *filterDetailt->pb_s2;
                         ++filterDetailt;
                     }
                     filterDetailt = &_filtersDetailt[0];
                     v /= 2.0f;
 
-                    while(filterDetailt >= stopFilterDetailt) {
+                    while(filterDetailt <= stopFilterDetailt) {
                         *filterDetailt->pb_s2 += v;
                         ++filterDetailt->pb_s2;                        
                         ++filterDetailt;
@@ -296,14 +297,14 @@ namespace UDA {
 
                     //IV
                     v = *pc;
-                    while(filterDetailt >= stopFilterDetailt) {
+                    while(filterDetailt <= stopFilterDetailt) {
                         v -= *filterDetailt->pb_s2;
                         ++filterDetailt;
                     }
                     filterDetailt = &_filtersDetailt[0];
                     v /= 2.0f;
 
-                    while(filterDetailt >= stopFilterDetailt) {
+                    while(filterDetailt <= stopFilterDetailt) {
                         *filterDetailt->pb_s2 += v;
                         ++filterDetailt->pb_s2;                        
                         ++filterDetailt;
@@ -320,14 +321,14 @@ namespace UDA {
                 {
                     /* Perform the multiply-accumulate */
                     v = *pc;
-                    while(filterDetailt >= stopFilterDetailt) {
+                    while(filterDetailt <= stopFilterDetailt) {
                         v -= *filterDetailt->pb_s2;
                         ++filterDetailt;
                     }
                     filterDetailt = &_filtersDetailt[0];
                     v /= 2.0f;
 
-                    while(filterDetailt >= stopFilterDetailt) {
+                    while(filterDetailt <= stopFilterDetailt) {
                         *filterDetailt->pb_s2 += v;
                         ++filterDetailt->pb_s2;                        
                         ++filterDetailt;
@@ -339,7 +340,7 @@ namespace UDA {
                     tapCnt--;
                 }       
                 
-                while(filterDetailt >= stopFilterDetailt) {
+                while(filterDetailt <= stopFilterDetailt) {
                     filterDetailt->x0 = *filterDetailt->pState;
                     ++filterDetailt->pState;
                     ++filterDetailt;
@@ -351,7 +352,7 @@ namespace UDA {
         //....................................End of block proc.......................................//
             {
                 arm_lms_norm_instance_f32* tempInstance = filterInstance;
-                while(filterDetailt >= stopFilterDetailt) {
+                while(filterDetailt <= stopFilterDetailt) {
                     tempInstance->x0 = filterDetailt->x0;
                     tempInstance->energy = filterDetailt->energy;
                     /* Processing is complete. Now copy the last numTaps - 1 samples to the
@@ -367,7 +368,7 @@ namespace UDA {
 
             
 
-            while(filterDetailt >= stopFilterDetailt) {
+            while(filterDetailt <= stopFilterDetailt) {
                 tapCnt = (numTaps - 1U) >> 2U;
                 while (tapCnt > 0U) {
                     *filterDetailt->pStateCurnt++ = *filterDetailt->pState++;
@@ -386,6 +387,8 @@ namespace UDA {
                     *filterDetailt->pStateCurnt++ = *filterDetailt->pState++;                                        
                     tapCnt--;
                 }
+
+                ++filterDetailt;
             }
             filterDetailt = &_filtersDetailt[0];
 
