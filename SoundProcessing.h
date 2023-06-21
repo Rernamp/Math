@@ -4,6 +4,8 @@
 #include <DataContainer.h>
 #include <StaticVector.h>
 
+#include <Math/IProcessing.h>
+
 namespace UDA {
 
 
